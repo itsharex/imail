@@ -19,8 +19,9 @@ enablerun: false
 action:
   before:
   - find . -name ".DS_Store" -print -delete
-  - rm -rf logs/run_away.log
   - gofmt -w ./
+  - go mod tidy
+  - go mod vendor
   - make build
   - make run
   after:

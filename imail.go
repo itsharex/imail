@@ -9,8 +9,6 @@ import (
 	"github.com/midoks/imail/internal/cmd"
 	"github.com/midoks/imail/internal/conf"
 	"github.com/midoks/imail/internal/log"
-	"github.com/midoks/imail/internal/tools"
-	"github.com/midoks/imail/internal/tools/syscall"
 )
 
 const Version = "0.1.0"
