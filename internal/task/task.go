@@ -2,6 +2,7 @@ package task
 
 import (
 	"fmt"
+
 	"github.com/midoks/imail/internal/conf"
 	"github.com/midoks/imail/internal/db"
 	"github.com/midoks/imail/internal/log"
@@ -27,7 +28,8 @@ func TaskQueueeSendMail() {
 		for _, val := range result {
 			db.MailSetStatusById(val.Id, 2)
 
-			content, err := db.MailContentRead(result[0].Uid, result[0].Id)
+			// 修复 bug：使用当前循环的 val 而不是 result[0]
+			content, err := db.MailContentRead(val.Uid, val.Id)
 			if err != nil {
 				continue
 			}
