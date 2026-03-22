@@ -222,7 +222,9 @@ func (this *ImapServer) parseArgsConent(format string, data db.Mail) (string, er
 	format = strings.Trim(format, "()")
 
 	inputN := strings.Split(format, " ")
-	list := make(map[string]interface{})
+
+	// 预分配足够的空间
+	list := make(map[string]interface{}, len(inputN))
 
 	// 使用 bufio.NewReader 因为 component.ReadHeader 要求这个类型
 	bufferedBody := bufio.NewReader(strings.NewReader(content))
@@ -237,28 +239,34 @@ func (this *ImapServer) parseArgsConent(format string, data db.Mail) (string, er
 	for i := 0; i < len(inputN); i++ {
 
 		if strings.EqualFold(inputN[i], "uid") {
-			uid_id := fmt.Sprintf("%d", id)
+			// 使用 strconv.FormatInt 避免 fmt.Sprintf 的开销
+			uid_id := strconv.FormatInt(id, 10)
 			list[inputN[i]] = uid_id
 		}
 
 		if strings.EqualFold(inputN[i], "flags") {
-			flags := "("
+			// 预分配 flags 字符串
+			flagsBuf := tools.BufferPoolInstance.Get()
+			defer tools.BufferPoolInstance.Put(flagsBuf)
+
+			flagsBuf.WriteString("(")
 			if data.IsRead {
-				flags += "\\SEEN"
+				flagsBuf.WriteString("\\SEEN")
 			} else {
-				flags += "\\UNSEEN"
+				flagsBuf.WriteString("\\UNSEEN")
 			}
 
 			if data.IsFlags {
-				flags += "\\Flagged"
+				flagsBuf.WriteString("\\Flagged")
 			}
 
-			flags += ")"
-			list[inputN[i]] = flags
+			flagsBuf.WriteString(")")
+			list[inputN[i]] = flagsBuf.String()
 		}
 
 		if strings.EqualFold(inputN[i], "rfc822.size") {
-			rfc822_size := fmt.Sprintf("%d", len(content))
+			// 使用 strconv.Itoa 避免 fmt.Sprintf 的开销
+			rfc822_size := strconv.Itoa(len(content))
 			list[inputN[i]] = rfc822_size
 		}
 
@@ -270,11 +278,22 @@ func (this *ImapServer) parseArgsConent(format string, data db.Mail) (string, er
 			// 为 header 重新创建 reader，避免重置缓冲区的开销
 			headerReader := bufio.NewReader(strings.NewReader(content))
 			headerString, _ := component.ReadHeaderString(headerReader)
-			list["body[header]"] = fmt.Sprintf("{%d}\r\n%s", len(headerString), headerString)
+
+			// 预分配缓冲区
+			headerBuf := tools.BufferPoolInstance.Get()
+			defer tools.BufferPoolInstance.Put(headerBuf)
+
+			fmt.Fprintf(headerBuf, "{%d}\r\n%s", len(headerString), headerString)
+			list["body[header]"] = headerBuf.String()
 		}
 
 		if strings.EqualFold(inputN[i], "body.peek[]") {
-			list["body[]"] = fmt.Sprintf("{%d}\r\n%s", len(content), content)
+			// 预分配缓冲区
+			bodyBuf := tools.BufferPoolInstance.Get()
+			defer tools.BufferPoolInstance.Put(bodyBuf)
+
+			fmt.Fprintf(bodyBuf, "{%d}\r\n%s", len(content), content)
+			list["body[]"] = bodyBuf.String()
 			db.MailSeenById(id)
 		}
 	}
@@ -292,7 +311,8 @@ func (this *ImapServer) parseArgsConent(format string, data db.Mail) (string, er
 		}
 	}
 
-	out := fmt.Sprintf("(%s)", outBuf.String())
+	// 直接构造输出字符串
+	out := "(" + outBuf.String() + ")"
 	return out, nil
 }
 

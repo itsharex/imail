@@ -451,23 +451,24 @@ func MailPush(uid int64, mtype int, mail_from string, mail_to string, content st
 		Size:              len(content),
 		Status:            status,
 		IsDraft:           is_draft,
+		Updated:           time.Now(),
+		Created:           time.Now(),
+		UpdatedUnix:       time.Now().Unix(),
+		CreatedUnix:       time.Now().Unix(),
 	}
 
-	m.Updated = time.Now()
-	m.Created = time.Now()
-	m.UpdatedUnix = time.Now().Unix()
-	m.CreatedUnix = time.Now().Unix()
-	result := db.Create(&m)
-
+	result := tx.Create(&m)
 	if result.Error != nil {
 		tx.Rollback()
+		return 0, result.Error
 	}
 
 	err := MailContentWrite(m.Uid, m.Id, content)
 	if err != nil {
 		tx.Rollback()
+		return 0, err
 	}
 
 	tx.Commit()
-	return m.Id, result.Error
+	return m.Id, nil
 }

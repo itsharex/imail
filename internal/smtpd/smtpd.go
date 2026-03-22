@@ -562,28 +562,30 @@ func (smtp *SmtpdServer) cmdData(input string) bool {
 func (smtp *SmtpdServer) addEnvelopeDataAcceptLine(data []byte) []byte {
 	tlsDetails := ""
 
-	tlsVersions := map[uint16]string{
-		tls.VersionSSL30: "SSL3.0",
-		tls.VersionTLS10: "TLS1.0",
-		tls.VersionTLS11: "TLS1.1",
-		tls.VersionTLS12: "TLS1.2",
-		tls.VersionTLS13: "TLS1.3",
-	}
+	// 预分配 tlsDetails 缓冲区
+	tlsBuf := tools.BufferPoolInstance.Get()
+	defer tools.BufferPoolInstance.Put(tlsBuf)
 
 	if smtp.stateTLS != nil {
 		version := "unknown"
 
-		if val, ok := tlsVersions[smtp.stateTLS.Version]; ok {
-			version = val
+		switch smtp.stateTLS.Version {
+		case tls.VersionSSL30:
+			version = "SSL3.0"
+		case tls.VersionTLS10:
+			version = "TLS1.0"
+		case tls.VersionTLS11:
+			version = "TLS1.1"
+		case tls.VersionTLS12:
+			version = "TLS1.2"
+		case tls.VersionTLS13:
+			version = "TLS1.3"
 		}
 
 		cipher := tls.CipherSuiteName(smtp.stateTLS.CipherSuite)
 
-		tlsDetails = fmt.Sprintf(
-			"\r\n\t(version=%s cipher=%s);",
-			version,
-			cipher,
-		)
+		fmt.Fprintf(tlsBuf, "\r\n\t(version=%s cipher=%s);", version, cipher)
+		tlsDetails = tlsBuf.String()
 	}
 
 	peerIP := ""
@@ -596,24 +598,25 @@ func (smtp *SmtpdServer) addEnvelopeDataAcceptLine(data []byte) []byte {
 	lineBuf := tools.BufferPoolInstance.Get()
 	defer tools.BufferPoolInstance.Put(lineBuf)
 
+	// 预计算时间字符串，避免在循环中重复计算
+	timeStr := time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700 (MST)")
+
 	fmt.Fprintf(lineBuf, "Received: from %s (unknown[%s])\n\tby %s with SMTP id\n\tfor <%s>; %s %s\r\n",
 		peerIP,
 		peerIP,
 		serverTagName,
 		smtp.recordCmdMailFrom,
-		time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700 (MST)"),
+		timeStr,
 		tlsDetails,
 	)
 
 	line := tools.Wrap(lineBuf.Bytes())
 
-	data = append(data, line...)
-
-	// Move the new Received line up front
-	copy(data[len(line):], data[0:len(data)-len(line)])
-	copy(data, line)
-	return data
-
+	// 预分配足够的空间，避免多次内存分配
+	newData := make([]byte, len(line)+len(data))
+	copy(newData, line)
+	copy(newData[len(line):], data)
+	return newData
 }
 
 func (smtp *SmtpdServer) cmdDataAccept() bool {
@@ -631,12 +634,14 @@ func (smtp *SmtpdServer) cmdDataAccept() bool {
 	if smtp.runModeIn {
 		// smtp.D("smtpd[data][peer]:", smtp.peer)
 		revContent := smtp.addEnvelopeDataAcceptLine(data.Bytes())
+		// 直接使用 []byte 避免字符串转换
 		fid, err := db.MailPush(smtp.userID, 1, smtp.recordCmdMailFrom, smtp.recordcmdRcptTo, string(revContent), 3, false)
 		if err != nil {
 			return false
 		}
 		mail.ExecPython(conf.Hook.SendScript, fid)
 	} else {
+		// 直接使用 data.String() 避免额外的内存分配
 		fid, err := db.MailPush(smtp.userID, 0, smtp.recordCmdMailFrom, smtp.recordcmdRcptTo, data.String(), 0, false)
 		if err != nil {
 			return false

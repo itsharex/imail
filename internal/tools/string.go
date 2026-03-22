@@ -295,6 +295,8 @@ var base64BufferPool = sync.Pool{
 	},
 }
 
+const maxBase64BufferSize = 1024 * 1024 // 1MB
+
 func Base64encode(in string) string {
 	src := []byte(in)
 	maxLen := base64.StdEncoding.EncodedLen(len(src))
@@ -310,8 +312,11 @@ func Base64encode(in string) string {
 	base64.StdEncoding.Encode(dst, src)
 	result := string(dst)
 
-	// 归还缓冲区到池
-	base64BufferPool.Put(dst)
+	// 只归还不超过最大大小的缓冲区
+	if cap(dst) <= maxBase64BufferSize {
+		base64BufferPool.Put(dst)
+	}
+	// 否则，让 GC 收集它
 	return result
 }
 
@@ -328,15 +333,20 @@ func Base64decode(in string) (string, error) {
 
 	n, err := base64.StdEncoding.Decode(dst, src)
 	if err != nil {
-		// 归还缓冲区到池
-		base64BufferPool.Put(dst)
+		// 只归还不超过最大大小的缓冲区
+		if cap(dst) <= maxBase64BufferSize {
+			base64BufferPool.Put(dst)
+		}
 		return in, err
 	}
 
 	result := string(dst[:n])
 
-	// 归还缓冲区到池
-	base64BufferPool.Put(dst)
+	// 只归还不超过最大大小的缓冲区
+	if cap(dst) <= maxBase64BufferSize {
+		base64BufferPool.Put(dst)
+	}
+	// 否则，让 GC 收集它
 	return result, nil
 }
 

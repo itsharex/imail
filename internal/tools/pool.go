@@ -9,7 +9,8 @@ import (
 
 // BufferPool is a pool of bytes.Buffer objects
 type BufferPool struct {
-	pool sync.Pool
+	pool    sync.Pool
+	maxSize int
 }
 
 // NewBufferPool creates a new BufferPool
@@ -20,6 +21,7 @@ func NewBufferPool() *BufferPool {
 				return &bytes.Buffer{}
 			},
 		},
+		maxSize: 1024 * 1024, // 1MB
 	}
 }
 
@@ -30,8 +32,14 @@ func (p *BufferPool) Get() *bytes.Buffer {
 
 // Put puts a buffer back into the pool
 func (p *BufferPool) Put(buf *bytes.Buffer) {
+	// Reset the buffer
 	buf.Reset()
-	p.pool.Put(buf)
+
+	// Only put back buffers that are not too large
+	if buf.Cap() <= p.maxSize {
+		p.pool.Put(buf)
+	}
+	// Otherwise, let the GC collect it
 }
 
 // MD5Pool is a pool of hash.Hash objects

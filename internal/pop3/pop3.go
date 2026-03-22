@@ -116,8 +116,7 @@ func (this *Pop3Server) Debug(d bool) {
 }
 
 func (this *Pop3Server) w(msg string) error {
-	log := fmt.Sprintf("POP[w]:%s", msg)
-	this.D(log)
+	this.D("POP[w]:%s", msg)
 
 	_, err := this.writer.Write([]byte(msg))
 	this.writer.Flush()
@@ -311,7 +310,13 @@ func (this *Pop3Server) cmdRetr(input string) bool {
 					content, size, err := db.MailPosContentForPop(this.userID, pos)
 					if err == nil {
 						sizeStr := strconv.Itoa(size)
-						this.writeArgs(MSG_RETR_DATA, sizeStr, content)
+						// 使用对象池减少内存分配
+						buf := tools.BufferPoolInstance.Get()
+						defer tools.BufferPoolInstance.Put(buf)
+						buf.Reset()
+						buf.Grow(len("+OK ") + len(MSG_RETR_DATA) + len(sizeStr) + len(content) + len("\r\n"))
+						fmt.Fprintf(buf, "+OK "+MSG_RETR_DATA+"\r\n", sizeStr, content)
+						this.w(buf.String())
 						return true
 					}
 				}

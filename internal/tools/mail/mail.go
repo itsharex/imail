@@ -1,7 +1,6 @@
 package mail
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"regexp"
@@ -152,8 +151,10 @@ func GetMailSend(from string, to string, subject string, msg string) (string, er
 	boundaryRand := tools.RandString(20)
 	encodedMsg := tools.Base64encode(msg)
 
-	// 使用 bytes.Buffer 减少内存分配
-	var buf bytes.Buffer
+	// 从对象池获取缓冲区
+	buf := tools.BufferPoolInstance.Get()
+	defer tools.BufferPoolInstance.Put(buf)
+	buf.Reset()
 	buf.Grow(len(sendTemplate) + len(from) + len(to) + len(subject) + len(sendTime) + len(sendVersion) + len(encodedMsg) + len(boundaryRand))
 
 	// 手动替换模板变量，减少字符串分配
@@ -208,8 +209,10 @@ func GetMailReturnToSender(mailFrom, rcptTo string, err_to_mail string, err_cont
 	sendVersion := fmt.Sprintf("imail/%s", conf.App.Version)
 	boundaryRand := tools.RandString(20)
 
-	// 优化 HTML 模板替换
-	var htmlBuf bytes.Buffer
+	// 从对象池获取缓冲区
+	htmlBuf := tools.BufferPoolInstance.Get()
+	defer tools.BufferPoolInstance.Put(htmlBuf)
+	htmlBuf.Reset()
 	htmlBuf.Grow(len(returnHtmlTemplate) + len(msg) + len(sendSubject) + len(err_to_mail) + len(sendTime))
 
 	var last int
@@ -246,8 +249,10 @@ func GetMailReturnToSender(mailFrom, rcptTo string, err_to_mail string, err_cont
 	contentHtml := htmlBuf.String()
 	encodedHtml := tools.Base64encode(contentHtml)
 
-	// 优化主模板替换
-	var contentBuf bytes.Buffer
+	// 从对象池获取缓冲区
+	contentBuf := tools.BufferPoolInstance.Get()
+	defer tools.BufferPoolInstance.Put(contentBuf)
+	contentBuf.Reset()
 	contentBuf.Grow(len(returnTemplate) + len(mailFrom) + len(rcptTo) + len(sendTime) + len(sendVersion) + len(encodedHtml) + len(boundaryRand))
 
 	last = 0
