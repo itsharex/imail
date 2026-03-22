@@ -43,7 +43,7 @@ func MailContentRead(uid, mid int64) (string, error) {
 
 func MailContentReadDb(mid int64) (string, error) {
 	var r MailContent
-	err := db.Model(&MailContent{}).Where("mid = ?", mid).First(&r).Error
+	err := db.Model(&MailContent{}).Select("content").Where("mid = ?", mid).First(&r).Error
 	if err != nil {
 		return "", err
 	}
@@ -71,9 +71,16 @@ func MailContentWrite(uid int64, mid int64, content string) error {
 }
 
 func MailContentWriteDb(mid int64, content string) error {
-	user := MailContent{Mid: mid, Content: content}
-	result := db.Create(&user)
-	return result.Error
+	// 使用 UPSERT 操作，避免重复插入
+	var mc MailContent
+	result := db.Where("mid = ?", mid).First(&mc)
+	if result.Error != nil {
+		// 记录不存在，创建新记录
+		mc = MailContent{Mid: mid, Content: content}
+		return db.Create(&mc).Error
+	}
+	// 记录已存在，更新内容
+	return db.Model(&mc).Update("content", content).Error
 }
 
 func MailContentWriteHardDisk(uid int64, mid int64, content string) error {

@@ -11,13 +11,24 @@ import (
 	"github.com/midoks/imail/internal/tools"
 )
 
+// 预编译正则表达式
+var (
+	subjectRegex = regexp.MustCompile(`Subject: (.*)`)
+	fromRegex    = regexp.MustCompile(`From: (.*)`)
+)
+
 func GetMailSubject(content string) string {
 	var err error
-	valid := regexp.MustCompile(`Subject: (.*)`)
-	match := valid.FindAllStringSubmatch(content, -1)
+	match := subjectRegex.FindAllStringSubmatch(content, -1)
+	if len(match) == 0 {
+		return ""
+	}
 
 	val := match[0][0]
 	tmp := strings.SplitN(val, ":", 2)
+	if len(tmp) < 2 {
+		return ""
+	}
 	val = strings.TrimSpace(tmp[1])
 
 	if strings.Contains(val, "=?utf-8?B?") || strings.Contains(val, "=?UTF-8?B?") {
@@ -47,14 +58,22 @@ func GetMailSubject(content string) string {
 
 func GetMailFromInContent(content string) string {
 	var err error
-	valid := regexp.MustCompile(`From: (.*)`)
-	match := valid.FindAllStringSubmatch(content, -1)
+	match := fromRegex.FindAllStringSubmatch(content, -1)
+	if len(match) == 0 {
+		return ""
+	}
 
 	val := match[0][0]
 	tmp := strings.SplitN(val, ":", 2)
+	if len(tmp) < 2 {
+		return ""
+	}
 	val = strings.TrimSpace(tmp[1])
 
 	tmp = strings.SplitN(val, "<", 2)
+	if len(tmp) < 2 {
+		return ""
+	}
 	val = strings.TrimSpace(tmp[0])
 	val = strings.Trim(val, "\"")
 
@@ -62,7 +81,10 @@ func GetMailFromInContent(content string) string {
 		val = tmp[1]
 		val = strings.Trim(val, ">")
 		tmp = strings.SplitN(val, "@", 2)
-		return tmp[0]
+		if len(tmp) > 0 {
+			return tmp[0]
+		}
+		return ""
 	}
 
 	if strings.Contains(val, "=?utf-8?B?") || strings.Contains(val, "=?UTF-8?B?") {
@@ -78,9 +100,49 @@ func GetMailFromInContent(content string) string {
 	return val
 }
 
-func GetMailSend(from string, to string, subject string, msg string) (string, error) {
-	data, err := ioutil.ReadFile(conf.WorkDir() + "/conf/tpl/send.tpl")
+// 模板缓存
+var (
+	sendTemplate        string
+	returnTemplate      string
+	returnHtmlTemplate  string
+	templateCacheLoaded bool
+)
+
+// loadTemplates 加载模板文件到缓存
+func loadTemplates() error {
+	if templateCacheLoaded {
+		return nil
+	}
+
+	workDir := conf.WorkDir()
+
+	// 加载发送模板
+	data, err := ioutil.ReadFile(workDir + "/conf/tpl/send.tpl")
 	if err != nil {
+		return err
+	}
+	sendTemplate = string(data)
+
+	// 加载退信模板
+	data, err = ioutil.ReadFile(workDir + "/conf/tpl/return_to_sender.tpl")
+	if err != nil {
+		return err
+	}
+	returnTemplate = string(data)
+
+	// 加载退信HTML模板
+	data, err = ioutil.ReadFile(workDir + "/conf/tpl/return_to_sender_html.tpl")
+	if err != nil {
+		return err
+	}
+	returnHtmlTemplate = string(data)
+
+	templateCacheLoaded = true
+	return nil
+}
+
+func GetMailSend(from string, to string, subject string, msg string) (string, error) {
+	if err := loadTemplates(); err != nil {
 		return "", err
 	}
 
@@ -88,7 +150,7 @@ func GetMailSend(from string, to string, subject string, msg string) (string, er
 	sendVersion := fmt.Sprintf("imail/%s", conf.App.Version)
 	boundaryRand := tools.RandString(20)
 
-	content := strings.Replace(string(data), "{MAIL_FROM}", from, -1)
+	content := strings.Replace(sendTemplate, "{MAIL_FROM}", from, -1)
 	content = strings.Replace(content, "{RCPT_TO}", to, -1)
 	content = strings.Replace(content, "{SUBJECT}", subject, -1)
 	content = strings.Replace(content, "{TIME}", sendTime, -1)
@@ -101,29 +163,23 @@ func GetMailSend(from string, to string, subject string, msg string) (string, er
 
 // 邮件退信模板
 func GetMailReturnToSender(mailFrom, rcptTo string, err_to_mail string, err_content string, msg string) (string, error) {
+	if err := loadTemplates(); err != nil {
+		return "", err
+	}
+
 	sendSubject := GetMailSubject(err_content)
 
 	sendTime := time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700 (MST)")
 	sendVersion := fmt.Sprintf("imail/%s", conf.App.Version)
 	boundaryRand := tools.RandString(20)
 
-	data, err := ioutil.ReadFile(conf.WorkDir() + "/conf/tpl/return_to_sender.tpl")
-	if err != nil {
-		return "", err
-	}
-
-	dataHtml, err := ioutil.ReadFile(conf.WorkDir() + "/conf/tpl/return_to_sender_html.tpl")
-	if err != nil {
-		return "", err
-	}
-
-	contentHtml := strings.Replace(string(dataHtml), "{TILTE}", "sc", -1)
+	contentHtml := strings.Replace(returnHtmlTemplate, "{TILTE}", "sc", -1)
 	contentHtml = strings.Replace(contentHtml, "{ERR_MSG}", msg, -1)
 	contentHtml = strings.Replace(contentHtml, "{SEND_SUBJECT}", sendSubject, -1)
 	contentHtml = strings.Replace(contentHtml, "{ERR_TO_MAIL}", err_to_mail, -1)
 	contentHtml = strings.Replace(contentHtml, "{TIME}", sendTime, -1)
 
-	content := strings.Replace(string(data), "{MAIL_FROM}", mailFrom, -1)
+	content := strings.Replace(returnTemplate, "{MAIL_FROM}", mailFrom, -1)
 	content = strings.Replace(content, "{RCPT_TO}", rcptTo, -1)
 	content = strings.Replace(content, "{SUBJECT}", "系统退信", -1)
 	content = strings.Replace(content, "{TIME}", sendTime, -1)
