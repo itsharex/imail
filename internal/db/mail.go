@@ -293,22 +293,26 @@ func MailSoftDeleteByIds(ids []int64) bool {
 	return true
 }
 
-// TODO:批量硬删除邮件数据
+// 批量硬删除邮件数据
 func MailHardDeleteByIds(ids []int64) bool {
-	for _, id := range ids {
+	// 先批量查询所有邮件信息
+	var mails []Mail
+	if err := db.Where("id IN ?", ids).Find(&mails).Error; err != nil {
+		return false
+	}
 
-		mList, err := MailById(id)
-		if err != nil {
+	// 批量删除邮件记录
+	if err := db.Where("id IN ?", ids).Delete(&Mail{}).Error; err != nil {
+		return false
+	}
+
+	// 批量删除邮件内容
+	for _, mail := range mails {
+		if !MailContentDelete(mail.Uid, mail.Id) {
 			return false
 		}
-
-		if mList.IsDelete {
-			if !MailHardDeleteById(mList.Uid, id) {
-				return false
-			}
-		}
-
 	}
+
 	return true
 }
 
@@ -393,42 +397,36 @@ func MailUpdate(id int64, uid int64, mtype int, mail_from string, mail_to string
 		return 0, errors.New("id is error!")
 	}
 
-	tx := db.Begin()
-
 	subject := mail.GetMailSubject(content)
 	subjectIndex := fmt.Sprintf("idx_%s", subject)
 	mail_from_in_content := mail.GetMailFromInContent(content)
 
-	m := Mail{
-		Id:                id,
-		Uid:               uid,
-		Type:              mtype,
-		MailFrom:          mail_from,
-		MailFromInContent: mail_from_in_content,
-		MailTo:            mail_to,
-		Subject:           subject,
-		SubjectIndex:      subjectIndex,
-		Size:              len(content),
-		Status:            status,
-		IsDraft:           is_draft,
+	// 使用结构体更新，减少内存分配
+	updates := map[string]interface{}{
+		"uid":                  uid,
+		"type":                 mtype,
+		"mail_from":            mail_from,
+		"mail_from_in_content": mail_from_in_content,
+		"mail_to":              mail_to,
+		"subject":              subject,
+		"subject_index":        subjectIndex,
+		"size":                 len(content),
+		"status":               status,
+		"is_draft":             is_draft,
+		"updated_unix":         time.Now().Unix(),
 	}
 
-	m.UpdatedUnix = time.Now().Unix()
-	m.CreatedUnix = time.Now().Unix()
-	result := db.Save(&m)
-
-	if result.Error != nil {
-		tx.Rollback()
+	// 执行更新操作
+	if err := db.Model(&Mail{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		return 0, err
 	}
 
-	err := MailContentWrite(uid, m.Id, content)
-	if err != nil {
-		tx.Rollback()
+	// 写入邮件内容
+	if err := MailContentWrite(uid, id, content); err != nil {
+		return 0, err
 	}
 
-	tx.Commit()
-
-	return m.Id, result.Error
+	return id, nil
 }
 
 func MailPush(uid int64, mtype int, mail_from string, mail_to string, content string, status int, is_draft bool) (int64, error) {
