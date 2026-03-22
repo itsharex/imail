@@ -625,7 +625,11 @@ func (this *ImapServer) handle() {
 
 func (this *ImapServer) initTLSConfig() {
 	this.LinkSSL = true
-	this.TLSConfig = tools.InitAutoMakeTLSConfig()
+	if conf.Ssl.Enable {
+		this.TLSConfig = tools.InitAutoMakeTLSConfigWithArgs(conf.Ssl.CertFile, conf.Ssl.KeyFile)
+	} else {
+		this.TLSConfig = tools.InitAutoMakeTLSConfig()
+	}
 }
 
 func (this *ImapServer) start(conn net.Conn) {

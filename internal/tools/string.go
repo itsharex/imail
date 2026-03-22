@@ -237,11 +237,20 @@ func PathExists(path string) (bool, error) {
 }
 
 func WriteFile(file string, content string) error {
+	if IsMaliciousPath(file) {
+		return fmt.Errorf("invalid file path: %s", file)
+	}
 	return ioutil.WriteFile(file, []byte(content), os.ModePerm)
 }
 
 func ReadFileByte(file string) ([]byte, error) {
+	if IsMaliciousPath(file) {
+		return nil, fmt.Errorf("invalid file path: %s", file)
+	}
 	f, err := os.OpenFile(file, os.O_RDONLY, 0600)
+	if err != nil {
+		return nil, err
+	}
 	defer f.Close()
 	b, err := ioutil.ReadAll(f)
 	return b, err
