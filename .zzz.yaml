@@ -15,12 +15,14 @@ ext:
 - js
 - tmpl
 - ini
-enablerun: true
+enablerun: false
 action:
   before:
   - find . -name ".DS_Store" -print -delete
   - rm -rf logs/run_away.log
   - gofmt -w ./
+  - make build
+  - make run
   after:
   - ps -ef|grep 'imail service'| grep -v grep | awk '{print $2}' | xargs kill -9 
   -  ./imail service &

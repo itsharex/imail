@@ -1,7 +1,6 @@
 package context
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
