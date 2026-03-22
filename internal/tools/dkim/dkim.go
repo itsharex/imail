@@ -56,10 +56,26 @@ func CheckDomainA(domain string) error {
 	return nil
 }
 
+func sanitizeDomain(domain string) string {
+	// Remove any path traversal characters and restrict to valid domain characters
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '.' {
+			return r
+		}
+		return -1
+	}, domain)
+}
+
 func MakeDkimFile(path, domain string) (string, error) {
-	priFile := fmt.Sprintf("%s/dkim/%s/default.private", path, domain)
-	defalutTextFile := fmt.Sprintf("%s/dkim/%s/default.txt", path, domain)
-	defalutValFile := fmt.Sprintf("%s/dkim/%s/default.val", path, domain)
+	// Sanitize domain to prevent path traversal
+	safeDomain := sanitizeDomain(domain)
+	if safeDomain == "" {
+		return "", errors.New("invalid domain name")
+	}
+
+	priFile := fmt.Sprintf("%s/dkim/%s/default.private", path, safeDomain)
+	defalutTextFile := fmt.Sprintf("%s/dkim/%s/default.txt", path, safeDomain)
+	defalutValFile := fmt.Sprintf("%s/dkim/%s/default.val", path, safeDomain)
 
 	if tools.IsExist(priFile) {
 		pubContent, _ := tools.ReadFile(defalutTextFile)
@@ -97,6 +113,12 @@ func MakeDkimFile(path, domain string) (string, error) {
 }
 
 func MakeDkimConfFile(path, domain string) (string, error) {
+	// Sanitize domain to prevent path traversal
+	safeDomain := sanitizeDomain(domain)
+	if safeDomain == "" {
+		return "", errors.New("invalid domain name")
+	}
+
 	pDir := fmt.Sprintf("%s/dkim", path)
 	if b := tools.IsExist(pDir); !b {
 		err := os.MkdirAll(pDir, os.ModePerm)
@@ -105,7 +127,7 @@ func MakeDkimConfFile(path, domain string) (string, error) {
 		}
 	}
 
-	pathDir := fmt.Sprintf("%s/dkim/%s", path, domain)
+	pathDir := fmt.Sprintf("%s/dkim/%s", path, safeDomain)
 	if b := tools.IsExist(pathDir); !b {
 		err := os.MkdirAll(pathDir, os.ModePerm)
 		if err != nil {
@@ -113,12 +135,18 @@ func MakeDkimConfFile(path, domain string) (string, error) {
 		}
 	}
 
-	return MakeDkimFile(path, domain)
+	return MakeDkimFile(path, safeDomain)
 }
 
 func GetDomainDkimVal(path, domain string) (string, error) {
-	_, _ = MakeDkimConfFile(path, domain)
-	defalutValFile := fmt.Sprintf("%s/dkim/%s/default.val", path, domain)
+	// Sanitize domain to prevent path traversal
+	safeDomain := sanitizeDomain(domain)
+	if safeDomain == "" {
+		return "", errors.New("invalid domain name")
+	}
+
+	_, _ = MakeDkimConfFile(path, safeDomain)
+	defalutValFile := fmt.Sprintf("%s/dkim/%s/default.val", path, safeDomain)
 	pubContentRecord, err := tools.ReadFile(defalutValFile)
 	return pubContentRecord, err
 }
