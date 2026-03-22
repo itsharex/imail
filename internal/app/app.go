@@ -14,6 +14,7 @@ import (
 	"github.com/go-macaron/i18n"
 	"github.com/go-macaron/session"
 
+	assets "github.com/midoks/imail/embed"
 	"github.com/midoks/imail/internal/app/context"
 	"github.com/midoks/imail/internal/app/form"
 	"github.com/midoks/imail/internal/app/router"
@@ -21,7 +22,6 @@ import (
 	"github.com/midoks/imail/internal/app/router/mail"
 	"github.com/midoks/imail/internal/app/router/user"
 	"github.com/midoks/imail/internal/app/template"
-	"github.com/midoks/imail/internal/assets/templates"
 	"github.com/midoks/imail/internal/conf"
 )
 
@@ -68,16 +68,16 @@ func newMacaron() *macaron.Macaron {
 	}
 	if !conf.Web.LoadAssetsFromDisk {
 		// renderOpt.TemplateFileSystem = http.FS(conf.App.TemplateFs)
-		renderOpt.TemplateFileSystem = templates.NewTemplateFileSystem("", renderOpt.AppendDirectories[0])
+		renderOpt.TemplateFileSystem = assets.NewTemplateFileSystem("", renderOpt.AppendDirectories[0])
 	}
 
 	m.Use(macaron.Renderer(renderOpt))
 	//template end
 
-	localeNames, _ := conf.AssetDir("conf/locale")
+	localeNames, _ := conf.AssetDir("locale")
 	localeFiles := make(map[string][]byte)
 	for _, name := range localeNames {
-		localeFiles[name] = conf.MustAsset("conf/locale/" + name)
+		localeFiles[name] = conf.MustAsset("locale/" + name)
 	}
 	m.Use(i18n.I18n(i18n.Options{
 		CustomDirectory: filepath.Join(conf.CustomDir(), "conf", "locale"),

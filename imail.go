@@ -1,11 +1,11 @@
 package main
 
 import (
-	"embed"
 	"os"
 
 	"github.com/urfave/cli"
 
+	assets "github.com/midoks/imail/embed"
 	"github.com/midoks/imail/internal/cmd"
 	"github.com/midoks/imail/internal/conf"
 	"github.com/midoks/imail/internal/log"
@@ -16,17 +16,11 @@ import (
 const Version = "0.0.19"
 const AppName = "imail"
 
-//go:embed templates
-var viewsFs embed.FS
-
-//go:embed public/*
-var publicFs embed.FS
-
 func init() {
 	conf.App.Version = Version
 	conf.App.Name = AppName
 
-	conf.App.PublicFs = publicFs
+	conf.App.PublicFs = assets.PublicFS
 
 }
 

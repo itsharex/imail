@@ -12,33 +12,57 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
 
-	"github.com/midoks/imail/internal/assets/conf"
+	assets "github.com/midoks/imail/embed"
 	"github.com/midoks/imail/internal/tools"
 )
 
 // Asset is a wrapper for getting conf assets.
 func Asset(name string) ([]byte, error) {
-	return conf.Asset(name)
+	return assets.ReadConfFile(name)
 }
 
 // AssetDir is a wrapper for getting conf assets.
 func AssetDir(name string) ([]string, error) {
-	return conf.AssetDir(name)
+	// Remove "conf/" prefix if present
+	name = strings.TrimPrefix(name, "conf/")
+
+	files, err := assets.WalkConf()
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter files in the specified directory
+	var result []string
+	for _, f := range files {
+		dir := filepath.Dir(f)
+		if dir == name || (name == "" && dir == ".") {
+			// Return only the filename, not the full path
+			result = append(result, filepath.Base(f))
+		}
+	}
+	return result, nil
 }
 
 // MustAsset is a wrapper for getting conf assets.
 func MustAsset(name string) []byte {
-	return conf.MustAsset(name)
+	// Remove "conf/" prefix if present
+	name = strings.TrimPrefix(name, "conf/")
+	data, err := assets.ReadConfFile(name)
+	if err != nil {
+		log.Fatalf("Failed to read asset %q: %v", name, err)
+	}
+	return data
 }
 
 // File is the configuration object.
 var File *ini.File
 
 func Init(customConf string) error {
+	var err error
 
-	File, err := ini.LoadSources(ini.LoadOptions{
+	File, err = ini.LoadSources(ini.LoadOptions{
 		IgnoreInlineComment: true,
-	}, conf.MustAsset("conf/app.conf"))
+	}, MustAsset("app.conf"))
 	if err != nil {
 		return errors.Wrap(err, "parse 'conf/app.conf'")
 	}
