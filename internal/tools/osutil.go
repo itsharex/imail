@@ -7,6 +7,9 @@ import (
 
 // IsFile returns true if given path exists as a file (i.e. not a directory).
 func IsFile(path string) bool {
+	if IsMaliciousPath(path) {
+		return false
+	}
 	f, e := os.Stat(path)
 	if e != nil {
 		return false
@@ -17,6 +20,9 @@ func IsFile(path string) bool {
 // IsDir returns true if given path is a directory, and returns false when it's
 // a file or does not exist.
 func IsDir(dir string) bool {
+	if IsMaliciousPath(dir) {
+		return false
+	}
 	f, e := os.Stat(dir)
 	if e != nil {
 		return false
@@ -26,6 +32,9 @@ func IsDir(dir string) bool {
 
 // IsExist returns true if a file or directory exists.
 func IsExist(path string) bool {
+	if IsMaliciousPath(path) {
+		return false
+	}
 	_, err := os.Stat(path)
 	return err == nil || os.IsExist(err)
 }
