@@ -100,9 +100,13 @@ func SettingsPasswordPost(c *context.Context, f form.ChangePassword) {
 	} else if f.Password != f.Retype {
 		c.Flash.Error(c.Tr("form.password_not_match"))
 	} else {
-
-		salt := tools.RandString(10)
-		c.User.Password = tools.Md5(tools.Md5(f.Password) + salt)
+		// Use bcrypt for password update
+		hashedPassword, err := tools.HashPassword(f.Password)
+		if err != nil {
+			c.Errorf(err, "hash password")
+			return
+		}
+		c.User.Password = hashedPassword
 		if err := db.UserUpdater(c.User); err != nil {
 			c.Errorf(err, "update user")
 			return

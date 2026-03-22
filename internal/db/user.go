@@ -32,8 +32,13 @@ func (User) TableName() string {
 }
 
 func (u *User) ValidPassword(oldPwd string) bool {
-	inputPwd := tools.Md5(tools.Md5(oldPwd) + u.Salt)
+	// Check if password is already bcrypt hashed (bcrypt hashes start with $2a$)
+	if strings.HasPrefix(u.Password, "$2a$") {
+		return tools.CheckPasswordHash(oldPwd, u.Password)
+	}
 
+	// Legacy MD5 password check
+	inputPwd := tools.Md5(tools.Md5(oldPwd) + u.Salt)
 	return strings.EqualFold(u.Password, inputPwd)
 }
 
@@ -45,13 +50,14 @@ func CreateUser(u *User) (err error) {
 
 	data := db.First(u, "name = ?", u.Name)
 
-	if strings.EqualFold(u.Salt, "") {
-		u.Salt = tools.RandString(10)
-	}
-
-	u.Nick = u.Name
-	u.Password = tools.Md5(tools.Md5(u.Password) + u.Salt)
 	if data.Error != nil {
+		// Use bcrypt for new users
+		hashedPassword, err := tools.HashPassword(u.Password)
+		if err != nil {
+			return err
+		}
+		u.Password = hashedPassword
+		u.Nick = u.Name
 		result := db.Create(u)
 		return result.Error
 	}
@@ -140,8 +146,23 @@ func LoginByUserPassword(name string, password string) (bool, int64) {
 		return false, 0
 	}
 
+	// Check if password is already bcrypt hashed
+	if strings.HasPrefix(u.Password, "$2a$") {
+		if tools.CheckPasswordHash(password, u.Password) {
+			return true, u.Id
+		}
+		return false, 0
+	}
+
+	// Legacy MD5 password check
 	inputPwd := tools.Md5(tools.Md5(password) + u.Salt)
 	if inputPwd == u.Password {
+		// Auto-upgrade to bcrypt
+		hashedPassword, err := tools.HashPassword(password)
+		if err == nil {
+			u.Password = hashedPassword
+			db.Save(&u)
+		}
 		return true, u.Id
 	}
 	return false, 0

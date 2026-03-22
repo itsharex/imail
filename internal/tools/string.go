@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/axgle/mahonia"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func GetGoEol() string {
@@ -36,6 +37,21 @@ func Md5Byte(buf []byte) string {
 
 func Md5(s string) string {
 	return Md5Byte([]byte(s))
+}
+
+// HashPassword hashes a password using bcrypt
+func HashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+// CheckPasswordHash compares a password with a hash
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 func ToSlice(input string) ([]int64, error) {

@@ -10,6 +10,7 @@ BUILD_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 
 # Go 构建选项
 GO_LDFLAGS := -ldflags "-X 'github.com/midoks/imail/internal/conf.BuildTime=$(BUILD_TIME)' -X 'github.com/midoks/imail/internal/conf.BuildCommit=$(BUILD_COMMIT)'"
+GO_MOD := -mod=mod
 
 .PHONY: build
 
@@ -18,7 +19,7 @@ build:
 	@echo "Building $(APP_NAME) v$(VERSION)..."
 	@echo "Build Time: $(BUILD_TIME)"
 	@echo "Build Commit: $(BUILD_COMMIT)"
-	go build $(GO_LDFLAGS) -o $(APP_NAME) .
+	go build $(GO_MOD) $(GO_LDFLAGS) -o $(APP_NAME) .
 
 # 运行应用
 run:

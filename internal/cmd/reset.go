@@ -35,8 +35,13 @@ func runReset(c *cli.Context) error {
 		return err
 	}
 
-	u.Salt = tools.RandString(10)
-	u.Password = tools.Md5(tools.Md5(pwd) + u.Salt)
+	// Use bcrypt for password reset
+	hashedPassword, err := tools.HashPassword(pwd)
+	if err != nil {
+		fmt.Println("hash password error:", err)
+		return err
+	}
+	u.Password = hashedPassword
 
 	err = db.UserUpdater(&u)
 	if err != nil {
