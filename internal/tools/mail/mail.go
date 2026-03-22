@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"regexp"
@@ -149,16 +150,50 @@ func GetMailSend(from string, to string, subject string, msg string) (string, er
 	sendTime := time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700 (MST)")
 	sendVersion := fmt.Sprintf("imail/%s", conf.App.Version)
 	boundaryRand := tools.RandString(20)
+	encodedMsg := tools.Base64encode(msg)
 
-	content := strings.Replace(sendTemplate, "{MAIL_FROM}", from, -1)
-	content = strings.Replace(content, "{RCPT_TO}", to, -1)
-	content = strings.Replace(content, "{SUBJECT}", subject, -1)
-	content = strings.Replace(content, "{TIME}", sendTime, -1)
-	content = strings.Replace(content, "{VERSION}", sendVersion, -1)
-	content = strings.Replace(content, "{CONTENT}", tools.Base64encode(msg), -1)
-	content = strings.Replace(content, "{BOUNDARY_LINE}", boundaryRand, -1)
+	// 使用 bytes.Buffer 减少内存分配
+	var buf bytes.Buffer
+	buf.Grow(len(sendTemplate) + len(from) + len(to) + len(subject) + len(sendTime) + len(sendVersion) + len(encodedMsg) + len(boundaryRand))
 
-	return content, nil
+	// 手动替换模板变量，减少字符串分配
+	var last int
+	for i := 0; i < len(sendTemplate); {
+		if i+3 < len(sendTemplate) && sendTemplate[i] == '{' {
+			end := strings.Index(sendTemplate[i:], "}")
+			if end != -1 {
+				end += i
+				buf.WriteString(sendTemplate[last:i])
+
+				switch sendTemplate[i+1 : end] {
+				case "MAIL_FROM":
+					buf.WriteString(from)
+				case "RCPT_TO":
+					buf.WriteString(to)
+				case "SUBJECT":
+					buf.WriteString(subject)
+				case "TIME":
+					buf.WriteString(sendTime)
+				case "VERSION":
+					buf.WriteString(sendVersion)
+				case "CONTENT":
+					buf.WriteString(encodedMsg)
+				case "BOUNDARY_LINE":
+					buf.WriteString(boundaryRand)
+				default:
+					buf.WriteString(sendTemplate[i : end+1])
+				}
+
+				last = end + 1
+				i = end + 1
+				continue
+			}
+		}
+		i++
+	}
+	buf.WriteString(sendTemplate[last:])
+
+	return buf.String(), nil
 }
 
 // 邮件退信模板
@@ -173,18 +208,83 @@ func GetMailReturnToSender(mailFrom, rcptTo string, err_to_mail string, err_cont
 	sendVersion := fmt.Sprintf("imail/%s", conf.App.Version)
 	boundaryRand := tools.RandString(20)
 
-	contentHtml := strings.Replace(returnHtmlTemplate, "{TILTE}", "sc", -1)
-	contentHtml = strings.Replace(contentHtml, "{ERR_MSG}", msg, -1)
-	contentHtml = strings.Replace(contentHtml, "{SEND_SUBJECT}", sendSubject, -1)
-	contentHtml = strings.Replace(contentHtml, "{ERR_TO_MAIL}", err_to_mail, -1)
-	contentHtml = strings.Replace(contentHtml, "{TIME}", sendTime, -1)
+	// 优化 HTML 模板替换
+	var htmlBuf bytes.Buffer
+	htmlBuf.Grow(len(returnHtmlTemplate) + len(msg) + len(sendSubject) + len(err_to_mail) + len(sendTime))
 
-	content := strings.Replace(returnTemplate, "{MAIL_FROM}", mailFrom, -1)
-	content = strings.Replace(content, "{RCPT_TO}", rcptTo, -1)
-	content = strings.Replace(content, "{SUBJECT}", "系统退信", -1)
-	content = strings.Replace(content, "{TIME}", sendTime, -1)
-	content = strings.Replace(content, "{VERSION}", sendVersion, -1)
-	content = strings.Replace(content, "{CONTENT}", tools.Base64encode(contentHtml), -1)
-	content = strings.Replace(content, "{BOUNDARY_LINE}", boundaryRand, -1)
-	return content, nil
+	var last int
+	for i := 0; i < len(returnHtmlTemplate); {
+		if i+3 < len(returnHtmlTemplate) && returnHtmlTemplate[i] == '{' {
+			end := strings.Index(returnHtmlTemplate[i:], "}")
+			if end != -1 {
+				end += i
+				htmlBuf.WriteString(returnHtmlTemplate[last:i])
+
+				switch returnHtmlTemplate[i+1 : end] {
+				case "TILTE":
+					htmlBuf.WriteString("sc")
+				case "ERR_MSG":
+					htmlBuf.WriteString(msg)
+				case "SEND_SUBJECT":
+					htmlBuf.WriteString(sendSubject)
+				case "ERR_TO_MAIL":
+					htmlBuf.WriteString(err_to_mail)
+				case "TIME":
+					htmlBuf.WriteString(sendTime)
+				default:
+					htmlBuf.WriteString(returnHtmlTemplate[i : end+1])
+				}
+
+				last = end + 1
+				i = end + 1
+				continue
+			}
+		}
+		i++
+	}
+	htmlBuf.WriteString(returnHtmlTemplate[last:])
+	contentHtml := htmlBuf.String()
+	encodedHtml := tools.Base64encode(contentHtml)
+
+	// 优化主模板替换
+	var contentBuf bytes.Buffer
+	contentBuf.Grow(len(returnTemplate) + len(mailFrom) + len(rcptTo) + len(sendTime) + len(sendVersion) + len(encodedHtml) + len(boundaryRand))
+
+	last = 0
+	for i := 0; i < len(returnTemplate); {
+		if i+3 < len(returnTemplate) && returnTemplate[i] == '{' {
+			end := strings.Index(returnTemplate[i:], "}")
+			if end != -1 {
+				end += i
+				contentBuf.WriteString(returnTemplate[last:i])
+
+				switch returnTemplate[i+1 : end] {
+				case "MAIL_FROM":
+					contentBuf.WriteString(mailFrom)
+				case "RCPT_TO":
+					contentBuf.WriteString(rcptTo)
+				case "SUBJECT":
+					contentBuf.WriteString("系统退信")
+				case "TIME":
+					contentBuf.WriteString(sendTime)
+				case "VERSION":
+					contentBuf.WriteString(sendVersion)
+				case "CONTENT":
+					contentBuf.WriteString(encodedHtml)
+				case "BOUNDARY_LINE":
+					contentBuf.WriteString(boundaryRand)
+				default:
+					contentBuf.WriteString(returnTemplate[i : end+1])
+				}
+
+				last = end + 1
+				i = end + 1
+				continue
+			}
+		}
+		i++
+	}
+	contentBuf.WriteString(returnTemplate[last:])
+
+	return contentBuf.String(), nil
 }
