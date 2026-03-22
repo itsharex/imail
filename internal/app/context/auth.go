@@ -1,6 +1,7 @@
 package context
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -18,6 +19,10 @@ type ToggleOptions struct {
 func Toggle(options *ToggleOptions) macaron.Handler {
 
 	return func(c *Context) {
+
+		confJSON, _ := json.MarshalIndent(conf.Security, "", "  ")
+		fmt.Println(string(confJSON))
+
 		if !conf.Security.InstallLock {
 
 			fmt.Println("Toggle:not install")

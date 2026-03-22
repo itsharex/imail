@@ -22,7 +22,7 @@ var Service = cli.Command{
 func runAllService(c *cli.Context) error {
 	err := router.GlobalInit(c.String("config"))
 	if err != nil {
-		log.Errorf("Failed to initialize application: %s", err)
+		log.Errorf("failed to initialize application: %s", err)
 	}
 
 	app.Start(conf.Web.HttpPort)

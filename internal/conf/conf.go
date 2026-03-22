@@ -77,7 +77,10 @@ func Init(customConf string) error {
 			return errors.Wrap(err, "get absolute path")
 		}
 	}
+
 	CustomConf = customConf
+
+	fmt.Println("customConf:", customConf)
 
 	if tools.IsFile(customConf) {
 		if err = File.Append(customConf); err != nil {
@@ -207,14 +210,6 @@ func Init(customConf string) error {
 		return errors.Wrap(err, "mapping [cache] section")
 	} else if err = File.Section("other").MapTo(&Other); err != nil {
 		return errors.Wrap(err, "mapping [other] section")
-	}
-
-	// Check run user when the install is locked.
-	if Security.InstallLock {
-		currentUser, match := CheckRunUser(App.RunUser)
-		if !match {
-			return fmt.Errorf("user configured to run imail is %q, but the current user is %q", App.RunUser, currentUser)
-		}
 	}
 
 	return nil

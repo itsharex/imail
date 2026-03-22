@@ -69,7 +69,7 @@ func GlobalInit(customConf string) error {
 
 	err := conf.Init(customConf)
 	if err != nil {
-		return errors.Wrap(err, "init configuration")
+		return err
 	}
 
 	log.Init()

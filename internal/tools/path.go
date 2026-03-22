@@ -6,7 +6,6 @@ package tools
 
 import (
 	"net/url"
-	"path/filepath"
 	"strings"
 )
 
@@ -48,8 +47,8 @@ func IsSameSiteURLPath(path string) bool {
 	return true
 }
 
-// IsMaliciousPath returns true if given path is an absolute path or contains malicious content
+// IsMaliciousPath returns true if given path contains malicious content
 // which has potential to traverse upper level directories.
 func IsMaliciousPath(path string) bool {
-	return filepath.IsAbs(path) || strings.Contains(path, "..")
+	return strings.Contains(path, "..")
 }
