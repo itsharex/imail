@@ -311,6 +311,12 @@ func InstallPost(c *context.Context, f form.Install) {
 		return
 	}
 
+	// Initialize database for installation
+	if err := db.Init(); err != nil {
+		c.RenderWithErr(c.Tr("install.init_failed", err), INSTALL, &f)
+		return
+	}
+
 	// Create admin account
 	if len(f.AdminName) < 1 {
 		c.FormErr("AdminName", "AdminEmail")

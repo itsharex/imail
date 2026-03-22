@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	// "fmt"
 	"strings"
 	"time"
@@ -38,6 +39,10 @@ func (u *User) ValidPassword(oldPwd string) bool {
 
 // CreateUser creates record of a new user.
 func CreateUser(u *User) (err error) {
+	if db == nil {
+		return errors.New("database not initialized")
+	}
+
 	data := db.First(u, "name = ?", u.Name)
 
 	if strings.EqualFold(u.Salt, "") {

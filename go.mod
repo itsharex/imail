@@ -5,6 +5,7 @@ go 1.26.1
 require (
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.3
+	github.com/glebarez/sqlite v1.11.0
 	github.com/go-macaron/binding v1.2.0
 	github.com/go-macaron/cache v0.0.0-20200329073519-53bb48172687
 	github.com/go-macaron/captcha v0.2.0
