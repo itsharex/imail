@@ -792,7 +792,11 @@ func (smtp *SmtpdServer) initTLSConfigBk() {
 }
 
 func (smtp *SmtpdServer) initTLSConfig() {
-	smtp.TLSConfig = tools.InitAutoMakeTLSConfigWithArgs(conf.Ssl.CertFile, conf.Ssl.KeyFile)
+	if conf.Ssl.Enable {
+		smtp.TLSConfig = tools.InitAutoMakeTLSConfigWithArgs(conf.Ssl.CertFile, conf.Ssl.KeyFile)
+	} else {
+		smtp.TLSConfig = tools.InitAutoMakeTLSConfig()
+	}
 }
 
 func (smtp *SmtpdServer) ready() {
