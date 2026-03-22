@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -208,26 +209,37 @@ func SizeFormat(size float64) string {
 	return strconv.FormatFloat(size, 'f', 2, 32) + " " + units[n]
 }
 
-func RandString(len int) string {
-	rand.Seed(time.Now().UnixNano())
+var randSource = rand.NewSource(time.Now().UnixNano())
+var randGen = rand.New(randSource)
 
-	bytes := make([]byte, len)
-	for i := 0; i < len; i++ {
-		b := rand.Intn(26) + 65
+func RandString(length int) string {
+	bytes := make([]byte, length)
+	for i := 0; i < length; i++ {
+		b := randGen.Intn(26) + 65
 		bytes[i] = byte(b)
 	}
 	return string(bytes)
 }
 
-func RemoveDuplicatesAndEmpty(a []string) (ret []string) {
-	a_len := len(a)
-	for i := 0; i < a_len; i++ {
-		if (i > 0 && a[i-1] == a[i]) || len(a[i]) == 0 {
+func RemoveDuplicatesAndEmpty(a []string) []string {
+	if len(a) == 0 {
+		return nil
+	}
+
+	// 预分配内存，最坏情况是所有元素都不重复且非空
+	ret := make([]string, 0, len(a))
+	var prev string
+
+	for i, s := range a {
+		if (i > 0 && s == prev) || len(s) == 0 {
 			continue
 		}
-		ret = append(ret, a[i])
+		ret = append(ret, s)
+		prev = s
 	}
-	return
+
+	// 调整切片容量，减少内存使用
+	return ret[:len(ret):len(ret)]
 }
 
 func GetHttpData(url string) (string, error) {
@@ -277,17 +289,55 @@ func ReadFile(file string) (string, error) {
 	return string(b), err
 }
 
+var base64BufferPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, 1024)
+	},
+}
+
 func Base64encode(in string) string {
-	encodeString := base64.StdEncoding.EncodeToString([]byte(in))
-	return encodeString
+	src := []byte(in)
+	maxLen := base64.StdEncoding.EncodedLen(len(src))
+
+	// 从池中获取缓冲区
+	dst := base64BufferPool.Get().([]byte)
+	if cap(dst) < maxLen {
+		// 如果缓冲区不够大，重新分配
+		dst = make([]byte, maxLen)
+	}
+	dst = dst[:maxLen]
+
+	base64.StdEncoding.Encode(dst, src)
+	result := string(dst)
+
+	// 归还缓冲区到池
+	base64BufferPool.Put(dst)
+	return result
 }
 
 func Base64decode(in string) (string, error) {
-	decodeBytes, err := base64.StdEncoding.DecodeString(in)
+	src := []byte(in)
+	maxLen := base64.StdEncoding.DecodedLen(len(src))
+
+	// 从池中获取缓冲区
+	dst := base64BufferPool.Get().([]byte)
+	if cap(dst) < maxLen {
+		// 如果缓冲区不够大，重新分配
+		dst = make([]byte, maxLen)
+	}
+
+	n, err := base64.StdEncoding.Decode(dst, src)
 	if err != nil {
+		// 归还缓冲区到池
+		base64BufferPool.Put(dst)
 		return in, err
 	}
-	return string(decodeBytes), nil
+
+	result := string(dst[:n])
+
+	// 归还缓冲区到池
+	base64BufferPool.Put(dst)
+	return result, nil
 }
 
 func ConvertToString(src string, srcCode string, tagCode string) string {
