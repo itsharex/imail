@@ -26,7 +26,9 @@ action:
   - make build
   - make run
   after:
-  - ps -ef|grep 'imail service'| grep -v grep | awk '{print $2}' | xargs kill -9 
+  - ps -ef|grep 'imail service'| grep -v grep | awk '{print $2}' | xargs kill -9
+  - make build
+  - make run
   exit:
   - ps -ef|grep 'imail service'| grep -v grep
   - ps -ef|grep 'imail service'| grep -v grep | awk '{print $2}' | xargs kill -9

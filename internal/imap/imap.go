@@ -224,6 +224,7 @@ func (this *ImapServer) parseArgsConent(format string, data db.Mail) (string, er
 	inputN := strings.Split(format, " ")
 	list := make(map[string]interface{})
 
+	// 使用 bufio.NewReader 因为 component.ReadHeader 要求这个类型
 	bufferedBody := bufio.NewReader(strings.NewReader(content))
 	header, err := component.ReadHeader(bufferedBody)
 
@@ -266,7 +267,9 @@ func (this *ImapServer) parseArgsConent(format string, data db.Mail) (string, er
 		}
 
 		if strings.EqualFold(inputN[i], "body.peek[header]") {
-			headerString, _ := component.ReadHeaderString(bufferedBody)
+			// 为 header 重新创建 reader，避免重置缓冲区的开销
+			headerReader := bufio.NewReader(strings.NewReader(content))
+			headerString, _ := component.ReadHeaderString(headerReader)
 			list["body[header]"] = fmt.Sprintf("{%d}\r\n%s", len(headerString), headerString)
 		}
 

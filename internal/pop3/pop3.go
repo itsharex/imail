@@ -280,11 +280,14 @@ func (this *Pop3Server) cmdUidl(input string) bool {
 
 			this.ok("")
 			list, _ := db.MailListAllForPop(this.userID)
+			outBuf := tools.BufferPoolInstance.Get()
+			defer tools.BufferPoolInstance.Put(outBuf)
+
 			for i := 1; i <= len(list); i++ {
 				uid := strconv.FormatInt(list[i-1].Id, 10)
-				t := fmt.Sprintf("%d %s\r\n", i, tools.Md5(uid))
-				this.w(t)
+				fmt.Fprintf(outBuf, "%d %s\r\n", i, tools.Md5(uid))
 			}
+			this.w(outBuf.String())
 			this.w(".\r\n")
 			return true
 		}
