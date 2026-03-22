@@ -2,7 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -30,7 +29,8 @@ func GetGoEol() string {
 }
 
 func Md5Byte(buf []byte) string {
-	hash := md5.New()
+	hash := MD5PoolInstance.Get()
+	defer MD5PoolInstance.Put(hash)
 	hash.Write(buf)
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }

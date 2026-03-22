@@ -2,7 +2,6 @@ package smtpd
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -574,15 +573,19 @@ func (smtp *SmtpdServer) addEnvelopeDataAcceptLine(data []byte) []byte {
 
 	serverTagName := fmt.Sprintf("smtp.%s (NewMx)", smtp.Domain)
 
-	line := tools.Wrap([]byte(fmt.Sprintf(
-		"Received: from %s (unknown[%s])\n\tby %s with SMTP id\n\tfor <%s>; %s %s\r\n",
+	lineBuf := tools.BufferPoolInstance.Get()
+	defer tools.BufferPoolInstance.Put(lineBuf)
+
+	fmt.Fprintf(lineBuf, "Received: from %s (unknown[%s])\n\tby %s with SMTP id\n\tfor <%s>; %s %s\r\n",
 		peerIP,
 		peerIP,
 		serverTagName,
 		smtp.recordCmdMailFrom,
 		time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700 (MST)"),
 		tlsDetails,
-	)))
+	)
+
+	line := tools.Wrap(lineBuf.Bytes())
 
 	data = append(data, line...)
 
@@ -595,7 +598,8 @@ func (smtp *SmtpdServer) addEnvelopeDataAcceptLine(data []byte) []byte {
 
 func (smtp *SmtpdServer) cmdDataAccept() bool {
 
-	data := &bytes.Buffer{}
+	data := tools.BufferPoolInstance.Get()
+	defer tools.BufferPoolInstance.Put(data)
 	reader := textproto.NewReader(smtp.reader).DotReader()
 	_, err := io.CopyN(data, reader, int64(10240000))
 

@@ -276,18 +276,20 @@ func (this *ImapServer) parseArgsConent(format string, data db.Mail) (string, er
 		}
 	}
 
-	out := ""
+	outBuf := tools.BufferPoolInstance.Get()
+	defer tools.BufferPoolInstance.Put(outBuf)
+
 	for i := 0; i < len(inputN); i++ {
 		if strings.EqualFold(inputN[i], "body.peek[header]") {
-			out += fmt.Sprintf("%s %s ", strings.ToUpper("body[header]"), list["body[header]"])
+			fmt.Fprintf(outBuf, "%s %s ", strings.ToUpper("body[header]"), list["body[header]"])
 		} else if strings.EqualFold(inputN[i], "body.peek[]") {
-			out += fmt.Sprintf("%s %s", strings.ToUpper("body[]"), list["body[]"])
+			fmt.Fprintf(outBuf, "%s %s", strings.ToUpper("body[]"), list["body[]"])
 		} else {
-			out += fmt.Sprintf("%s %s ", strings.ToUpper(inputN[i]), list[inputN[i]])
+			fmt.Fprintf(outBuf, "%s %s ", strings.ToUpper(inputN[i]), list[inputN[i]])
 		}
 	}
 
-	out = fmt.Sprintf("(%s)", out)
+	out := fmt.Sprintf("(%s)", outBuf.String())
 	return out, nil
 }
 
