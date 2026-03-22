@@ -22,6 +22,7 @@ action:
   - gofmt -w ./
   - go mod tidy
   - go mod vendor
+  - ps -ef|grep 'imail service'| grep -v grep | awk '{print $2}' | xargs kill -9
   - make build
   - make run
   after:

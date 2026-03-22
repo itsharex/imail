@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/midoks/imail/internal/conf"
@@ -173,12 +174,31 @@ type SmtpdServer struct {
 	Domain string
 }
 
+// 预分配的 base64 编码缓冲区
+var base64BufferPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, 1024) // 预分配足够的空间
+	},
+}
+
 func (smtp *SmtpdServer) base64Encode(en string) string {
 	src := []byte(en)
 	maxLen := base64.StdEncoding.EncodedLen(len(src))
-	dst := make([]byte, maxLen)
+
+	// 从池中获取缓冲区
+	dst := base64BufferPool.Get().([]byte)
+	if cap(dst) < maxLen {
+		// 如果缓冲区不够大，重新分配
+		dst = make([]byte, maxLen)
+	}
+	dst = dst[:maxLen]
+
 	base64.StdEncoding.Encode(dst, src)
-	return string(dst)
+	result := string(dst)
+
+	// 归还缓冲区到池
+	base64BufferPool.Put(dst)
+	return result
 }
 
 func (smtp *SmtpdServer) base64Decode(de string) string {
@@ -603,7 +623,6 @@ func (smtp *SmtpdServer) cmdDataAccept() bool {
 	reader := textproto.NewReader(smtp.reader).DotReader()
 	_, err := io.CopyN(data, reader, int64(10240000))
 
-	content := string(data.Bytes())
 	if err == io.EOF {
 		smtp.write(MSG_MAIL_OK)
 	}
@@ -611,14 +630,14 @@ func (smtp *SmtpdServer) cmdDataAccept() bool {
 
 	if smtp.runModeIn {
 		// smtp.D("smtpd[data][peer]:", smtp.peer)
-		revContent := string(smtp.addEnvelopeDataAcceptLine(data.Bytes()))
-		fid, err := db.MailPush(smtp.userID, 1, smtp.recordCmdMailFrom, smtp.recordcmdRcptTo, revContent, 3, false)
+		revContent := smtp.addEnvelopeDataAcceptLine(data.Bytes())
+		fid, err := db.MailPush(smtp.userID, 1, smtp.recordCmdMailFrom, smtp.recordcmdRcptTo, string(revContent), 3, false)
 		if err != nil {
 			return false
 		}
 		mail.ExecPython(conf.Hook.SendScript, fid)
 	} else {
-		fid, err := db.MailPush(smtp.userID, 0, smtp.recordCmdMailFrom, smtp.recordcmdRcptTo, content, 0, false)
+		fid, err := db.MailPush(smtp.userID, 0, smtp.recordCmdMailFrom, smtp.recordcmdRcptTo, data.String(), 0, false)
 		if err != nil {
 			return false
 		}
