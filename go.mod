@@ -20,14 +20,14 @@ require (
 	github.com/midoks/mcopa v0.0.0-20220101182214-c193ea891591
 	github.com/phachon/go-logger v0.0.0-20191215032019-86e4227f71ea
 	github.com/pkg/errors v0.9.1
-	github.com/smartystreets/goconvey v1.6.4
+	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/unknwon/i18n v0.0.0-20210904045753-ff3a8617e361
 	github.com/urfave/cli v1.22.16
 	golang.org/x/crypto v0.44.0
 	golang.org/x/text v0.31.0
 	gopkg.in/ini.v1 v1.67.0
-	gopkg.in/macaron.v1 v1.5.0
+	gopkg.in/macaron.v1 v1.5.1
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.1
 )
@@ -43,7 +43,7 @@ require (
 	github.com/go-macaron/inject v0.0.0-20200308113650-138e5925c53b // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
+	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -57,7 +57,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/smartystreets/assertions v1.0.1 // indirect
+	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/unknwon/com v1.0.1 // indirect
 	golang.org/x/mod v0.31.0 // indirect
