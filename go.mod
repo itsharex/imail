@@ -27,7 +27,7 @@ require (
 	golang.org/x/crypto v0.44.0
 	golang.org/x/text v0.31.0
 	gopkg.in/ini.v1 v1.67.0
-	gopkg.in/macaron.v1 v1.5.0
+	gopkg.in/macaron.v1 v1.5.1
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.1
 )
