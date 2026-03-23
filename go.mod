@@ -23,7 +23,7 @@ require (
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.11.1
 	github.com/unknwon/i18n v0.0.0-20210904045753-ff3a8617e361
-	github.com/urfave/cli v1.22.16
+	github.com/urfave/cli v1.22.17
 	golang.org/x/crypto v0.44.0
 	golang.org/x/text v0.31.0
 	gopkg.in/ini.v1 v1.67.0
@@ -35,7 +35,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.7.0 // indirect
