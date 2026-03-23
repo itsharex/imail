@@ -1,7 +1,7 @@
 package conf
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
 	"net/url"
 	"os"
@@ -80,8 +80,7 @@ func Init(customConf string) error {
 
 	CustomConf = customConf
 
-	fmt.Println("customConf:", customConf)
-
+	// fmt.Println("customConf:", customConf)
 	if tools.IsFile(customConf) {
 		if err = File.Append(customConf); err != nil {
 			return errors.Wrapf(err, "append %q", customConf)
